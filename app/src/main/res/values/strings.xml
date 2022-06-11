@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">MorseCode Trainer</string>
+    <string name="settings">settings</string>
+    <string name="title_activity_settings">SettingsActivity</string>
+
+    <!-- Preference Titles -->
+    <string name="audio">Audio</string>
+    <string name="words">Words</string>
+
+    <!-- Messages Preferences -->
+    <string name="speed">Speed</string>
+    <string name="frequency">Frequency</string>
+</resources>

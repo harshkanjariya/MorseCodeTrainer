@@ -1,0 +1,34 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="@string/audio">
+
+        <SeekBarPreference
+            android:id="@+id/speed_pref"
+            app:min="3"
+            app:showSeekBarValue="true"
+            android:max="25"
+            app:key="speed"
+            app:title="@string/speed"/>
+
+        <EditTextPreference
+            app:key="frequency"
+            android:defaultValue="800"
+            android:title="@string/frequency"
+            android:inputType="numberDecimal"/>
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/words">
+
+        <ListPreference
+            app:defaultValue="word"
+            app:entries="@array/word_entries"
+            app:entryValues="@array/word_values"
+            app:key="words"
+            app:title="@string/words"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+</PreferenceScreen>
