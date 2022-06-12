@@ -1,51 +1,53 @@
 package com.hknk.mctrainer
 
 import android.content.Intent
-import android.content.res.Resources
-import android.media.AudioFormat
-import android.media.AudioManager
-import android.media.AudioTrack
+import android.media.*
 import android.os.Bundle
-import android.os.Handler
 import android.util.Log
-import android.util.TypedValue
-import android.view.Display
 import android.view.Menu
 import android.view.MenuItem
-import android.view.MotionEvent
 import android.widget.Button
 import android.widget.EditText
+import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.preference.PreferenceManager
-import java.io.BufferedReader
-import java.io.InputStreamReader
+import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 class MainActivity : AppCompatActivity() {
-    var handler: Handler = Handler()
     private lateinit var answerBox: EditText
+    private lateinit var seekBar: SeekBar
 
+    private val sampleRate = 8000
     private var speed = 13
     private var freq = 800.0
+    private var maxWordLength = 25
     private var code = ArrayList<Int>()
     private var words = ArrayList<String>()
+    private var filteredWords = ArrayList<String>()
 
+    private var generated = ByteArray(0)
     private lateinit var currentWord: String
-
-    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
-        menuInflater.inflate(R.menu.main_menu, menu)
-        return true
-    }
+    private var isPlaying = false
+    private var totalTime = 0L
+    private var lastPlaybackPosition = 0
 
     private val activityLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
         loadSettings()
+        generateAudio()
+    }
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.main_menu, menu)
+        return true
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -62,54 +64,40 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        loadSettings()
         loadWords()
+        loadSettings()
         nextWord()
 
         answerBox = findViewById(R.id.answer_box)
+        seekBar = findViewById(R.id.seekbar)
+
         findViewById<Button>(R.id.playBtn).setOnClickListener {
-            playWord()
+            if (isPlaying) {
+                pause()
+            } else {
+                if (seekBar.progress in 1..99) {
+                    continueAudio()
+                } else {
+                    play()
+                }
+            }
         }
         val submitBtn = findViewById<Button>(R.id.submitBtn)
         submitBtn.setOnClickListener {
             submit()
         }
-        submitBtn.setOnTouchListener { v, event ->
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> submitBtn.setPadding(
-                    submitBtn.paddingLeft,
-                    5.toPx.toInt(),
-                    submitBtn.paddingRight,
-                    submitBtn.paddingBottom
-                )
-                MotionEvent.ACTION_MOVE ->
-                    if (event.x > submitBtn.width || event.x < 0 ||
-                        event.y < 0 || event.y > submitBtn.height
-                    ) {
-                        submitBtn.setPadding(
-                            submitBtn.paddingLeft,
-                            0,
-                            submitBtn.paddingRight,
-                            submitBtn.paddingBottom
-                        )
-                    }
-                MotionEvent.ACTION_UP -> submitBtn.setPadding(
-                    submitBtn.paddingLeft,
-                    0,
-                    submitBtn.paddingRight,
-                    submitBtn.paddingBottom
-                )
+        seekBar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {}
+            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
+            override fun onStopTrackingTouch(seekBar: SeekBar?) {
+                if (seekBar != null) {
+                    val newValue = generated.size * seekBar.progress / 100
+                    lastPlaybackPosition = newValue
+                    audioTrack?.playbackHeadPosition = newValue
+                }
             }
-            return@setOnTouchListener false
-        }
+        })
     }
-
-    val Number.toPx
-        get() = TypedValue.applyDimension(
-            TypedValue.COMPLEX_UNIT_DIP,
-            this.toFloat(),
-            Resources.getSystem().displayMetrics
-        )
 
     private fun submit() {
         val answer = answerBox.text.toString()
@@ -117,12 +105,39 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Correct", Toast.LENGTH_SHORT).show()
             nextWord()
             answerBox.setText("")
-            playWord()
+            play()
         }
     }
 
     private fun nextWord() {
-        currentWord = words[random(words.size - 1)]
+        currentWord = filteredWords[random(filteredWords.size - 1)]
+        generateAudio()
+    }
+
+    private fun generateAudio() {
+        code = ArrayList()
+        generateCodeFromText(
+            currentWord.lowercase(Locale.getDefault())
+                .toCharArray()
+        )
+
+        val duration = code.size * 1.0 / speed
+        val numSamples = (sampleRate * duration).roundToInt()
+        val samples = FloatArray(numSamples)
+        generated = ByteArray(2 * numSamples)
+
+        val waveLength = sampleRate / freq
+        for (i in 0 until numSamples) {
+            val index = (i / (sampleRate / speed)).coerceAtMost(code.size - 1)
+            samples[i] = (sin(2 * Math.PI * i / waveLength) * code[index]).toFloat()
+        }
+        var idx = 0
+        for (dVal in samples) {
+            val value: Int = (((dVal * 32767).toInt()))
+            generated[idx++] = (value and 0x00ff).toByte()
+            generated[idx++] = ((value and 0xff00) shr 8).toByte()
+        }
+        totalTime = (duration * 10).toLong()
     }
 
     private fun random(to: Int): Int {
@@ -134,6 +149,18 @@ class MainActivity : AppCompatActivity() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(this)
         speed = prefs.getInt("speed", 5)
         freq = prefs.getString("frequency", "800")?.toDoubleOrNull()!!
+        maxWordLength = prefs.getInt("max_word_length", 25)
+
+        filterWords()
+    }
+
+    private fun filterWords() {
+        filteredWords = ArrayList()
+        for (w in words) {
+            if (w.length <= maxWordLength) {
+                filteredWords.add(w)
+            }
+        }
     }
 
     private fun loadWords() {
@@ -208,45 +235,76 @@ class MainActivity : AppCompatActivity() {
         code.add(1)
     }
 
-    private fun playWord() {
-        val thread = Thread {
-            handler.post {
-                code = ArrayList()
-                generateCodeFromText(
-                    currentWord.lowercase(Locale.getDefault())
-                        .toCharArray()
-                )
-                play(freq, code)
-            }
+    private var timer: Timer? = null
+    private var audioTrack: AudioTrack? = null
+
+    private fun pause() {
+        if (audioTrack != null) {
+            lastPlaybackPosition = audioTrack?.playbackHeadPosition!!
+            audioTrack?.pause()
+            timer?.cancel()
         }
-        thread.start()
+        isPlaying = false
     }
 
-    private fun play(freqOfTone: Double, bits: List<Int>) {
-        val sampleRate = 8000
-        val duration = bits.size * 1.0 / speed
-        val numSamples = (sampleRate * duration).roundToInt()
-        val samples = FloatArray(numSamples)
-        val generated = ByteArray(2 * numSamples)
+    private fun continueAudio() {
+        if (audioTrack != null) {
+            isPlaying = true
+            audioTrack?.play()
+            startTimer(totalTime * (1 - seekBar.progress / 100))
+        }
+    }
 
-        val waveLength = sampleRate / freqOfTone
-        for (i in 0 until numSamples) {
-            val index = (i / (sampleRate / speed)).coerceAtMost(bits.size - 1)
-            samples[i] = (sin(2 * Math.PI * i / waveLength) * bits[index]).toFloat()
-        }
-        var idx = 0
-        for (dVal in samples) {
-            val value: Int = (((dVal * 32767).toInt()))
-            generated[idx++] = (value and 0x00ff).toByte()
-            generated[idx++] = ((value and 0xff00) shr 8).toByte()
-        }
-        val audioTrack = AudioTrack(
-            AudioManager.STREAM_MUSIC,
-            sampleRate, AudioFormat.CHANNEL_CONFIGURATION_MONO,
-            AudioFormat.ENCODING_PCM_16BIT, generated.size,
-            AudioTrack.MODE_STATIC
+    private fun play() {
+//        val mp = MediaPlayer()
+//        val file = File(filesDir.absolutePath + "/tmp.wav")
+//        mp.setDataSource(FileInputStream(file).fd)
+//        mp.prepare()
+//        mp.start()
+        audioTrack = AudioTrack(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_MEDIA)
+                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                .build(),
+            AudioFormat.Builder()
+                .setSampleRate(sampleRate)
+                .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                .build(),
+            generated.size,
+            AudioTrack.MODE_STATIC,
+            AudioManager.AUDIO_SESSION_ID_GENERATE
         )
-        audioTrack.write(generated, 0, generated.size)
-        audioTrack.play()
+        audioTrack?.write(generated, 0, generated.size)
+        isPlaying = true
+        audioTrack?.play()
+
+
+        seekBar.progress = 0
+        startTimer(totalTime)
+    }
+
+    private fun startTimer(delay: Long) {
+        timer = Timer()
+        timer?.schedule(object : TimerTask() {
+            override fun run() {
+                runOnUiThread {
+                    if (seekBar.progress < 100) {
+                        seekBar.progress = seekBar.progress + 1
+                    } else {
+                        endAudio()
+                    }
+                }
+            }
+        }, 0, delay)
+    }
+
+    private fun endAudio() {
+        seekBar.progress = 0
+        isPlaying = false
+        audioTrack?.stop()
+        audioTrack = null
+        timer?.cancel()
+        timer = null
     }
 }

@@ -29,6 +29,15 @@
             app:title="@string/words"
             app:useSimpleSummaryProvider="true" />
 
+        <SeekBarPreference
+            android:id="@+id/max_word_length"
+            app:min="3"
+            android:defaultValue="25"
+            app:showSeekBarValue="true"
+            android:max="25"
+            app:key="max_word_length"
+            app:title="@string/max_word_length"/>
+
     </PreferenceCategory>
 
 </PreferenceScreen>

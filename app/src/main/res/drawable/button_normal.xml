@@ -5,7 +5,7 @@
             <corners android:radius="20dp"/>
         </shape>
     </item>
-    <item android:bottom="5dp">
+    <item android:bottom="3dp">
         <shape android:shape="rectangle"
             android:tint="@color/green_500">
             <corners android:radius="20dp"/>

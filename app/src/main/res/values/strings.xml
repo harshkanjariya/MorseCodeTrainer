@@ -9,5 +9,6 @@
 
     <!-- Messages Preferences -->
     <string name="speed">Speed</string>
+    <string name="max_word_length">Max word length</string>
     <string name="frequency">Frequency</string>
 </resources>

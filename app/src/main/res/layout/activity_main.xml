@@ -6,25 +6,31 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <com.hknk.mctrainer.PressableButton
+    <androidx.appcompat.widget.AppCompatSeekBar
         android:layout_width="200dp"
-        android:layout_height="60dp"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"/>
-    <androidx.appcompat.widget.AppCompatButton
-        android:layout_width="200dp"
-        android:layout_height="60dp"
-        android:textAllCaps="false"
-        android:background="@drawable/button_background"
-        android:textColor="@android:color/white"
-        android:textSize="16sp"
-        android:text="Play"
-        android:id="@+id/playBtn"
+        android:layout_height="wrap_content"
+        android:id="@+id/seekbar"
+        android:max="100"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         android:layout_marginTop="100dp"/>
+
+    <com.hknk.mctrainer.PressableButton
+        android:layout_width="200dp"
+        android:layout_height="60dp"
+        android:text="Play"
+        android:paddingRight="70dp"
+        android:drawablePadding="-70dp"
+        android:drawableRight="@drawable/ic_baseline_volume_up_24"
+        android:drawableTint="@android:color/white"
+        android:fontFamily="sans-serif-medium"
+        android:textColor="@android:color/white"
+        android:id="@+id/playBtn"
+        android:layout_marginTop="20sp"
+        app:layout_constraintTop_toBottomOf="@+id/seekbar"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
     <EditText
         android:id="@+id/answer_box"
@@ -40,18 +46,17 @@
         app:layout_constraintTop_toTopOf="parent"
         tools:ignore="SpeakableTextPresentCheck" />
 
-    <androidx.appcompat.widget.AppCompatButton
-        android:layout_width="200dp"
+    <com.hknk.mctrainer.PressableButton
+        android:layout_width="0dp"
         android:layout_height="60dp"
         android:text="Submit"
-        android:background="@drawable/button_background"
-        android:textSize="16sp"
-        android:textAllCaps="false"
         android:textColor="@android:color/white"
         android:id="@+id/submitBtn"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        android:layout_marginBottom="100dp"/>
+        android:layout_marginBottom="50dp"
+        android:layout_marginStart="50dp"
+        android:layout_marginEnd="50dp"/>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
