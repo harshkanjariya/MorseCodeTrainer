@@ -1,28 +1,31 @@
 package com.hknk.mctrainer
 
 import android.content.Intent
+import android.graphics.Color
 import android.media.*
 import android.os.Bundle
-import android.util.Log
+import android.os.Handler
+import android.os.Looper
 import android.view.Menu
 import android.view.MenuItem
 import android.widget.Button
 import android.widget.EditText
 import android.widget.SeekBar
-import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.preference.PreferenceManager
+import com.google.android.material.snackbar.Snackbar
 import java.io.*
 import java.util.*
 import kotlin.collections.ArrayList
-import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
 class MainActivity : AppCompatActivity() {
     private lateinit var answerBox: EditText
     private lateinit var seekBar: SeekBar
+    private lateinit var rootLayout: ConstraintLayout
 
     private val sampleRate = 8000
     private var speed = 13
@@ -68,9 +71,11 @@ class MainActivity : AppCompatActivity() {
         loadSettings()
         nextWord()
 
+        rootLayout = findViewById(R.id.root_layout)
         answerBox = findViewById(R.id.answer_box)
         seekBar = findViewById(R.id.seekbar)
 
+        answerBox.compoundDrawablesRelative[2].alpha = 0
         findViewById<Button>(R.id.playBtn).setOnClickListener {
             if (isPlaying) {
                 pause()
@@ -102,10 +107,20 @@ class MainActivity : AppCompatActivity() {
     private fun submit() {
         val answer = answerBox.text.toString()
         if (answer.lowercase() == currentWord.lowercase()) {
-            Toast.makeText(this, "Correct", Toast.LENGTH_SHORT).show()
+            answerBox.compoundDrawablesRelative[2].alpha = 0
+            answerBox.background.setTint(Color.parseColor("#00CB00"))
+            Snackbar.make(rootLayout, "Correct!", Snackbar.LENGTH_SHORT).show()
             nextWord()
             answerBox.setText("")
-            play()
+            MediaPlayer.create(this, R.raw.success)
+                .start()
+            Handler(Looper.getMainLooper())
+                .postDelayed({
+                    play()
+                }, 2000)
+        } else {
+            answerBox.compoundDrawablesRelative[2].alpha = 255
+            answerBox.background.setTint(Color.parseColor("#FF4E4E"))
         }
     }
 
